@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal</title>
+    <style>
+      .command-area{
+        font-weight: bold;
+        font-size: 16px;
+        font-family: "Ubuntu Light",serif;
+      }
+    </style>
+  </head>
+  <body style="background-color: #300a24;">
+    <div id="main"></div>
+    <div class="command-area" id="id_prefix" hidden="hidden">
+      <span style="color: #2b8765;" class="user">user</span>
+      <span style="color: white;">:</span>
+      <span style="color: #144076;" class="directory">~</span>
+      <span style="color: white;">$</span>
+      <span contenteditable="true" style="display: inline-block; min-width: 40%; color: white; border: 0;" class="input" oninput="sendCommand(this)"></span>
+      <div class="output" style="color:white"></div>
+    </div>
+    <script>
+      let oldHtml = '';
+      const formData = new FormData();
+      formData.append('command','');
+      init();
+      let numCommandAreas = 0;
+
+      async function init(){
+        let response = await fetch('/terminal.php');
+        let respData = await response.json();
+        displayCommandArea(respData['user'], respData['directory'])
+      }
+
+      function displayCommandArea(user, directory){
+        const main = document.getElementById('main');
+        main.appendChild(document.getElementById('id_prefix').cloneNode(true));
+        let commandArea = main.querySelector('#id_prefix')
+        let newId = 'command'+(++numCommandAreas);
+        commandArea.setAttribute('id', newId);
+        commandArea.removeAttribute('hidden');
+        commandArea.querySelector('.user').innerHTML = user;
+        commandArea.querySelector('.directory').innerHTML = directory;
+        setTimeout(function() {
+          commandArea.querySelector('.input').focus();
+        }, 0);
+      }
+
+      async function sendCommand(el){
+        let html = el.innerHTML;
+        if(!html.includes('<br>')){
+          oldHtml = html;
+        }
+        else{
+          el.innerHTML = oldHtml;
+          let command = el.innerText.trim()
+          if(command.length>0) {
+            if(command.startsWith('clear')){
+              clear();
+              return;
+            }
+            el.contentEditable = false;
+            formData.set('command',command);
+            let response = await fetch('/terminal.php', {method: 'POST', body: formData});
+            let respData = await response.json()
+            let output = respData['output'].replace(/\n/g,'<br/>')
+            output = output.replace(/ /g, '&nbsp;');
+            document.getElementById('command'+numCommandAreas).querySelector('.output').innerHTML = output;
+            displayCommandArea(respData['user'], respData['directory'])
+          }
+        }
+      }
+
+      function clear(){
+        document.getElementById('main').innerHTML = '';
+        init();
+      }
+    </script>
+  </body>
+</html>
+
+
